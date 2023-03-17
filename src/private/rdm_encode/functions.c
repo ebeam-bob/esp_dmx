@@ -1,10 +1,26 @@
 #include "functions.h"
 
+// Leaving this here so it can be "used" temporarily
+// until the calling code in esp_rdm.c changes over to rdm_encode_header.
+// Could add the loop that copies PD into data...
+// Could call rdm_encode_header from here...
 size_t rdm_encode_response(uint8_t *data, size_t mdb_len) {
-  // Encode the ? and calculate the checksum
-  uint16_t checksum = 0;
+  // Fill the payload Parameter Data, if any, into the buffer
+  // before we encode it (calculate the checksum, etc.)
+  // rdm_data_t *rdm = data;
+  // uint8_t *pPD = ((uint8_t*)&(rdm->pd));
+  // if (NULL != payload) {
+  //   for (int i = 0; i < pd_len; ++i) {
+  //     pPD[i] = ((uint8_t *)payload)[i];
+  //   }
+  // }
   
+  // Encode the header and calculate the checksum
+  // size_t written =
+  //     rdm_encode_header(driver->data.buffer, &header);
+
   // Encode the checksum
+  uint16_t checksum = 0;
   for (int i = 0; i < mdb_len; ++i) {
     checksum += ((uint8_t *)data)[i];
   }
@@ -83,6 +99,10 @@ size_t rdm_encode_header(void *data, const rdm_header_t *header) {
   rdm->cc = header->cc;
   rdm->pid = bswap16(header->pid);
   rdm->pdl = header->pdl;
+  // Right now, it's the caller's responsibility to have already
+  // copied the Param Data (PD) into the data buffer...
+  // Gimme another void* argument & I could do it here.
+  // (Then this function becomes rdm_encode_response...)
 
   // Calculate checksum
   uint16_t checksum = 0;
@@ -91,7 +111,7 @@ size_t rdm_encode_header(void *data, const rdm_header_t *header) {
   }
   *(uint16_t *)(data + rdm->message_len) = bswap16(checksum);
 
-  return RDM_BASE_PACKET_SIZE;
+  return header->pdl + RDM_BASE_PACKET_SIZE;
 }
 
 bool rdm_decode_header(const void *data, rdm_header_t *header) {

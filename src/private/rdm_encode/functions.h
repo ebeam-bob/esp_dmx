@@ -16,14 +16,9 @@
 extern "C" {
 #endif
 
-/**
- * @brief Encodes a normal response in the desired data buffer.
- *
- * @param[out] data The buffer in which to encode the response.
- * @param mdb_len The length of the response MDB.
- * @return The number of bytes encoded.
- */
-size_t rdm_encode_response(uint8_t *data, size_t mdb_len);
+// Leaving this here so it can be brought back temporarily
+// until the calling code changes over to rdm_encode_header
+// size_t rdm_encode_response(uint8_t *data, size_t mdb_len);
 
 /**
  * @brief Encodes a DISC_UNIQUE_BRANCH response in the desired data buffer.

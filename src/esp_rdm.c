@@ -24,7 +24,6 @@
 static const char *TAG = "rdm";  // The log tagline for the file.
 
 bool rdm_uid_array_is_broadcast(uint8_t *uid) {
-  // bool is_broadcast = false;
   for (int i = 2; i < 6; ++i) {
     if (0xff != uid[i]) {
       return false;
@@ -33,13 +32,7 @@ bool rdm_uid_array_is_broadcast(uint8_t *uid) {
   return true;
 }
 
-// UNDER CONSTRUCTION !!!!!
 bool rdm_uid_array_is_addressed_to(uint8_t *uid, uint8_t *addressee) {
-  // uid &= 0xffffffffffff;
-  // addressee &= 0xffffffffffff;
-  // bool temp = addressee == uid ||
-  //        ((uid >> 32 == 0xffff || uid >> 32 == addressee >> 32) &&
-  //         (uint32_t)uid == 0xffffffff);
   for (int i = 0; i < 6; ++i) {
     if ((addressee[i] != uid[i]) && 
         (0xff != uid[i])) {
@@ -125,7 +118,7 @@ bool rdm_is_muted(dmx_port_t dmx_num) {
   return is_muted;
 }
 
-bool set_rdm_muted(dmx_port_t dmx_num, bool mute) {
+bool rdm_set_muted(dmx_port_t dmx_num, bool mute) {
   RDM_CHECK(dmx_num < DMX_NUM_MAX, false, "dmx_num error");
   RDM_CHECK(dmx_driver_is_installed(dmx_num), false, "driver is not installed");
 
@@ -148,40 +141,38 @@ size_t rdm_send_response(dmx_port_t dmx_num, rdm_data_t *data, const void *paylo
   RDM_CHECK(pd_len <= 231, 0, "pd_len error");
   RDM_CHECK(response <= RDM_RESPONSE_TYPE_ACK_OVERFLOW, 0, "invalid response type error");
 
+  rdm_header_t header;
   dmx_driver_t *const driver = dmx_driver[dmx_num];
   xSemaphoreTakeRecursive(driver->mux, portMAX_DELAY);
   dmx_wait_sent(dmx_num, portMAX_DELAY);
 
-  // Fill in the fields of the response over those of the command
-  data->sc = RDM_SC;
-  data->sub_sc = RDM_SUB_SC;
-  data->message_len = 24 + pd_len;
-  data->cc++;  // turn cmd code into response? 1 higher 
-  // data->pid = data->pid;   // Let it be
-  data->pdl = pd_len;
+  // Fill in the header fields of the response
+  memcpy(header.destination_uid, data->source_uid, 6);
+  memcpy(header.source_uid, data->destination_uid, 6);
+  
+  header.tn = data->tn;   // Valid ???
+  header.response_type = response;  // was RDM_RESPONSE_TYPE_ACK;
+  header.tmessage_countn = data->message_count;   // Valid, or should it be zero ???
+  header.sub_device = RDM_ROOT_DEVICE;   // Valid ???
+  header.cc = data->cc + 1;  // Wanna turn cmd code into response? It's 1 higher 
+  header.pid = data->pid;
+  header.pdl = pd_len;
   uint8_t *pPD = ((uint8_t*)&(data->pd));
-  // Fill the payload Parameter Data, if any, into the packet
+  // Fill the payload Parameter Data, if any, into the buffer
+  // before we encode it (calculate the checksum, etc.)
   if (NULL != payload) {
     for (int i = 0; i < pd_len; ++i) {
       pPD[i] = ((uint8_t *)payload)[i];
     }
   }
 
-  uint8_t temp[6];
-  memcpy(temp, data->destination_uid, 6);
-  memcpy(data->destination_uid, data->source_uid, 6);
-  memcpy(data->source_uid, temp, 6);
-  
-  data->response_type = response;  // was RDM_RESPONSE_TYPE_ACK;
-  data->sub_device = RDM_ROOT_DEVICE;
-
   // Put the packet as it is so far into the driver's buffer for transmission
-  memcpy(driver->data.buffer, data, 24 + pd_len);
+  // memcpy(driver->data.buffer, data, 24 + pd_len);
 
   // Write and send the response
   size_t written =
-      rdm_encode_response(driver->data.buffer, 24 + pd_len);
-  // dmx_send(dmx_num, written);
+      rdm_encode_header(driver->data.buffer, &header);
+      // rdm_encode_response(driver->data.buffer, 24 + pd_len);
 
   // For diagnostics (rcd)
   if (NULL != packet) {

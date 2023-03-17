@@ -184,7 +184,7 @@ bool rdm_is_muted(dmx_port_t dmx_num);
  * @return true if RDM discovery was muted.
  * @return false if RDM discovery was not muted.
  */
-bool set_rdm_muted(dmx_port_t dmx_num, bool mute);
+bool rdm_set_muted(dmx_port_t dmx_num, bool mute);
 
 /**
  * @brief Sends a "normal" RDM response on the desired DMX port.
